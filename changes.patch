@@ -1,0 +1,107 @@
+diff --git a/bitmap/play.xbm b/bitmap/play.xbm
+index 4d63679..a11022f 100644
+--- a/bitmap/play.xbm
++++ b/bitmap/play.xbm
+@@ -1,5 +1,7 @@
+ #define play_width 15
+ #define play_height 12
+ static char play_bits[] = {
+-   0x00, 0x00, 0x0c, 0x00, 0x3c, 0x00, 0xfc, 0x00, 0xfc, 0x03, 0xfc, 0x0f,
+-   0xfc, 0x0f, 0xfc, 0x03, 0xfc, 0x00, 0x3c, 0x00, 0x0c, 0x00, 0x00, 0x00};
++   0x00, 0x00, 0x0c, 0x00, 0x3c, 0x00, (char)(0xfc), 0x00,
++   (char)(0xfc), 0x03, (char)(0xfc), 0x0f,
++   (char)(0xfc), 0x0f, (char)(0xfc), 0x03,
++   (char)(0xfc), 0x00, 0x3c, 0x00, 0x0c, 0x00, 0x00, 0x00};
+\ No newline at end of file
+diff --git a/linkstate/ls.h b/linkstate/ls.h
+index 5a7800a..7b0fb53 100644
+--- a/linkstate/ls.h
++++ b/linkstate/ls.h
+@@ -134,7 +134,7 @@ public:
+ 		return ib.second ? ib.first : baseMap::end();
+ 	}
+ 
+-	void eraseAll() { erase(baseMap::begin(), baseMap::end()); }
++	void eraseAll() { this->erase(baseMap::begin(), baseMap::end()); }
+ 	T* findPtr(Key key) {
+ 		iterator it = baseMap::find(key);
+ 		return (it == baseMap::end()) ? (T *)NULL : &((*it).second);
+diff --git a/mdart/mdart_adp.cc b/mdart/mdart_adp.cc
+index a96346e..6bb9225 100644
+--- a/mdart/mdart_adp.cc
++++ b/mdart/mdart_adp.cc
+@@ -105,7 +105,7 @@ void ADP::sendDarq(nsaddr_t reqId, int reqpktId) {
+ #ifdef DEBUG_ADP
+ 	fprintf(stdout, "%.9f\tADP::sendDarq(%d)\t\t\tin node %d\twith address %s\n", CURRENT_TIME, reqId, mdart_->id_, bitString(mdart_->address_));
+ #endif
+-	nsaddr_t dstAdd_ = hash(reqId);
++	nsaddr_t dstAdd_ = ::hash(reqId);
+ #ifdef DEBUG_ADP
+ 	fprintf(stdout, "\tsending darq for node %s\n", bitString(dstAdd_));
+ #endif
+@@ -393,7 +393,7 @@ void ADP::sendDaup() {
+ 	fprintf(stdout, "%.9f\tMDART::sendDaup()\t\t\t\tin node %d\twith address %s\n", CURRENT_TIME, mdart_->id_, bitString(mdart_->address_));
+ //	printDHT();
+ #endif
+-	nsaddr_t dstAdd_ = hash(mdart_->id_);
++	nsaddr_t dstAdd_ = ::hash(mdart_->id_);
+ #ifdef DEBUG_ADP
+ 	fprintf(stdout, "\tsending daup for node  %s\n", bitString(dstAdd_));
+ 	mdart_->routingTable_->print();
+diff --git a/tcp/tcp-fack.cc b/tcp/tcp-fack.cc
+index 103d7fa..71d3ac5 100644
+--- a/tcp/tcp-fack.cc
++++ b/tcp/tcp-fack.cc
+@@ -84,7 +84,7 @@ void FackTcpAgent::oldack(Packet* pkt)
+ 	 * retract maxseq_. The following line of code helps in those cases. For
+ 	 * versions of TCP, it is a NOP.
+ */
+-	maxseq_ = max(maxseq_, highest_ack_);
++	maxseq_ = ::max(maxseq_, highest_ack_);
+ 	if (t_seqno_ < last_ack_ + 1)
+ 		t_seqno_ = last_ack_ + 1;
+ 	newtimer(pkt);
+diff --git a/tcp/tcp-fs.cc b/tcp/tcp-fs.cc
+index 8511cf6..8c5a216 100644
+--- a/tcp/tcp-fs.cc
++++ b/tcp/tcp-fs.cc
+@@ -65,7 +65,7 @@ TcpFsAgent::output_helper(Packet *pkt)
+ 	double now = Scheduler::instance().clock();
+ 	double idle_time = now - last_recv_time_;
+ 	double timeout = ((t_srtt_ >> 3) + t_rttvar_) * tcp_tick_ ;
+-	maxseq_ = max(maxseq_, highest_ack_);
++	maxseq_ = ::max(maxseq_, highest_ack_);
+ 
+ 	/* 
+ 	 * if the connection has been idle (with no outstanding data) for long 
+@@ -172,7 +172,7 @@ TcpFsAgent::recv_newack_helper(Packet *pkt)
+ 	else
+ 		ackcount = 1;
+ 	newack(pkt);
+-	maxseq_ = max(maxseq_, highest_ack_);
++	maxseq_ = ::max(maxseq_, highest_ack_);
+ 	if (t_exact_srtt_ != 0) {
+ 		delta = tao - t_exact_srtt_;
+ 		if (delta < 0)
+@@ -208,7 +208,7 @@ NewRenoTcpFsAgent::partialnewack_helper(Packet* pkt)
+ {
+ 	partialnewack(pkt);
+ 	/* Do this because we may have retracted maxseq_ */
+-	maxseq_ = max(maxseq_, highest_ack_);
++	maxseq_ = ::max(maxseq_, highest_ack_);
+ 	if (fs_mode_ && fast_loss_recov_) {
+ 		/* 
+ 		 * A partial new ack implies that more than one packet has been lost
+diff --git a/tcp/tcp-linux.cc b/tcp/tcp-linux.cc
+index 30e668b..a8ee9b9 100644
+--- a/tcp/tcp-linux.cc
++++ b/tcp/tcp-linux.cc
+@@ -151,7 +151,7 @@ unsigned char LinuxTcpAgent::ack_processing(Packet* pkt, unsigned char flag)
+ 	if (flag&FLAG_DATA_ACKED) {
+ 		highest_ack_ = tcph->seqno();
+ 		linux_.snd_una = (highest_ack_+1)*linux_.mss_cache;
+-		maxseq_ = max(maxseq_, highest_ack_);
++		maxseq_ = ::max(maxseq_, highest_ack_);
+ 		if (t_seqno_ < highest_ack_ + 1) {
+ 			t_seqno_ = highest_ack_ + 1;
+ 			linux_.snd_nxt = t_seqno_*linux_.mss_cache;
